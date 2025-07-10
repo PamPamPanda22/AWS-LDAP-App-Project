@@ -1,33 +1,34 @@
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, request, render_template
+import ldap
 
 app = Flask(__name__)
 
-# Dummy user/password for now
-VALID_USERS = {
-    "jdoe": "password123"
-}
+LDAP_SERVER = "ldap://localhost"
+BASE_DN = "ou=People,dc=vintagestore,dc=com"
+LDAP_USER_ATTR = "uid"
 
-# Defines when function triggers and allowed methods 
-@app.route("/", methods=["GET", "POST"]) 
+@app.route("/", methods=["GET", "POST"])
 def login():
     error = None
-    # If POST method is submitted from user
     if request.method == "POST":
-
-        # Username and password stored from HTML form
-        username = request.form["username"] 
+        username = request.form["username"]
         password = request.form["password"]
+        # Constructs the full user distinct name based on username
+        user_dn = f"{LDAP_USER_ATTR}={username},{BASE_DN}"
 
-        # Checks if password from form matches the username
-        if username in VALID_USERS and VALID_USERS[username] == password:
-            #return new html page
+        try:
+            # Connect and bind with user credentials
+            conn = ldap.initialize(LDAP_SERVER)
+            conn.simple_bind_s(user_dn, password)
             return f"<h1>Welcome, {username}!</h1>"
-        else:
-            error = "Invalid username or password."
+        except ldap.INVALID_CREDENTIALS:
+            error = "Invalid credentials."
+        except ldap.SERVER_DOWN:
+            error = "LDAP server is unreachable."
+        except Exception as e:
+            error = f"LDAP error: {str(e)}"
 
-    #return page from login.html with error if applicable
     return render_template("login.html", error=error)
 
-# Starts the Flask development server, listening on all network interfaces (0.0.0.0) at port 5000
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
