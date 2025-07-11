@@ -1,33 +1,50 @@
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, request, render_template, redirect, url_for, session
 
 app = Flask(__name__)
+
+# Set a secret key for session management (use a strong random key in production)
+app.config['SECRET_KEY'] = 'replace-this-with-a-secure-random-key'
 
 # Dummy user/password for now
 VALID_USERS = {
     "jdoe": "password123"
 }
 
-# Defines when function triggers and allowed methods 
-@app.route("/", methods=["GET", "POST"]) 
+@app.route("/", methods=["GET", "POST"])
 def login():
     error = None
-    # If POST method is submitted from user
-    if request.method == "POST":
 
-        # Username and password stored from HTML form
-        username = request.form["username"] 
+    if request.method == "POST":
+        username = request.form["username"]
         password = request.form["password"]
 
-        # Checks if password from form matches the username
         if username in VALID_USERS and VALID_USERS[username] == password:
-            #return new html page
-            return f"<h1>Welcome, {username}!</h1>"
+            # Store username in session to mark user as logged in
+            session['username'] = username
+            return redirect(url_for('welcome'))
         else:
             error = "Invalid username or password."
 
-    #return page from login.html with error if applicable
     return render_template("login.html", error=error)
 
-# Starts the Flask development server, listening on all network interfaces (0.0.0.0) at port 5000
+
+@app.route("/welcome")
+def welcome():
+    # Check if user is logged in by looking for 'username' in session
+    if 'username' in session:
+        username = session['username']
+        return f"<h1>Welcome, {username}!</h1><a href='/logout'>Logout</a>"
+    else:
+        # Not logged in, redirect to login page
+        return redirect(url_for('login'))
+
+
+@app.route("/logout")
+def logout():
+    # Clear user session to log out
+    session.pop('username', None)
+    return redirect(url_for('login'))
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
